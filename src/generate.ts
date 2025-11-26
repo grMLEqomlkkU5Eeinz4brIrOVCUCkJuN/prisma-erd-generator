@@ -122,7 +122,7 @@ ${
                 }
 
                 const otherModel = modellikes.find(
-                    (model) => model.name === otherSide
+                    (model) => model.name === field.type || model.dbName === field.type
                 )
 
                 const otherField = otherModel?.fields.find(
