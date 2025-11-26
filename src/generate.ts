@@ -129,7 +129,7 @@ ${
                     ({ relationName }) => relationName === field.relationName
                 )
 
-                let otherSideMultiplicity = thisSideMultiplicity
+                let otherSideMultiplicity = '||'
                 if (otherField?.isList) {
                     otherSideMultiplicity = '}o'
                 } else if (!otherField?.isRequired) {
