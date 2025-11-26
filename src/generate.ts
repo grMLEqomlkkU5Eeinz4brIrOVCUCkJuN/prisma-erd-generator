@@ -275,18 +275,25 @@ export const matchesIgnorePattern = (
 /**
  * Detects ULID fields from the Prisma schema
  * Returns a Set of field identifiers in the format "modelName.fieldName"
+ * Supports detection via:
+ * - @default(ulid()) or @default(ulid) in the field definition
+ * - /// @ulid comment annotation above the field
  */
 export const detectUlidFields = (dataModel: string): Set<string> => {
     const ulidFields = new Set<string>()
     const lines = dataModel?.split('\n') || []
     let currentModel: string | null = null
     let braceCount = 0
+    let previousLineWasUlidComment = false
 
     for (let i = 0; i < lines.length; i++) {
         const originalLine = lines[i] || ''
         const line = originalLine.trim()
         
-        if (!line && !originalLine) continue
+        if (!line && !originalLine) {
+            previousLineWasUlidComment = false
+            continue
+        }
         
         // Count braces to track model boundaries
         const openBraces = (originalLine.match(/{/g) || []).length
@@ -297,6 +304,7 @@ export const detectUlidFields = (dataModel: string): Set<string> => {
         const modelMatch = line.match(/^model\s+(\w+)/)
         if (modelMatch && modelMatch[1]) {
             currentModel = modelMatch[1]
+            previousLineWasUlidComment = false
             continue
         }
 
@@ -304,19 +312,32 @@ export const detectUlidFields = (dataModel: string): Set<string> => {
         if (braceCount <= 0 && currentModel) {
             currentModel = null
             braceCount = 0
+            previousLineWasUlidComment = false
+            continue
+        }
+
+        // Check for /// @ulid comment annotation
+        if (line.includes('///') && /@ulid/i.test(line)) {
+            previousLineWasUlidComment = true
             continue
         }
 
         // Detect ULID fields: look for @default(ulid()) or @default(ulid)
         // Pattern matches: @default(ulid()), @default(ulid), @default(ulid("prefix"))
-        if (currentModel && line && /@default\s*\(\s*ulid/i.test(line)) {
+        // Or check if previous line was a @ulid comment
+        if (currentModel && line && (previousLineWasUlidComment || /@default\s*\(\s*ulid/i.test(line))) {
             // Extract field name - field name is before the type
-            // Pattern: fieldName Type @default(ulid())
+            // Pattern: fieldName Type @default(...)
             const fieldMatch = line.match(/^\s*(\w+)\s+\w+/)
             if (fieldMatch && fieldMatch[1]) {
                 const fieldName = fieldMatch[1]
                 ulidFields.add(`${currentModel}.${fieldName}`)
             }
+        }
+
+        // Reset the comment flag after processing a field line
+        if (previousLineWasUlidComment && line && !line.includes('///')) {
+            previousLineWasUlidComment = false
         }
     }
 

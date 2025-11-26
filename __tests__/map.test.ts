@@ -64,6 +64,7 @@ test('@map', async () => {
                     default: { name: 'autoincrement', args: [] },
                     isGenerated: false,
                     isUpdatedAt: false,
+                    originalName: 'id',
                 },
                 {
                     name: 'hashed_password',
@@ -77,6 +78,7 @@ test('@map', async () => {
                     hasDefaultValue: false,
                     isGenerated: false,
                     isUpdatedAt: false,
+                    originalName: 'hashedPassword',
                 },
             ],
         },

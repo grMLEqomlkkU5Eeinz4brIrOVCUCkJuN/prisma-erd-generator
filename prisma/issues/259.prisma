@@ -9,7 +9,8 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(ulid())
+  /// @ulid
+  id        String   @id @default(uuid())
   email     String   @unique
   name      String?
   posts     Post[]
@@ -18,7 +19,8 @@ model User {
 }
 
 model Post {
-  id        String   @id @default(ulid())
+  /// @ulid
+  id        String   @id @default(uuid())
   title     String
   content   String?
   authorId  String
