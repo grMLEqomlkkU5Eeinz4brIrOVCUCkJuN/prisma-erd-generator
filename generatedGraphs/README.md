@@ -1,0 +1,1 @@
+Hi there, this folder is made for me to put all the generated files so i can analyze them by hand and ensure that the changes work as intended

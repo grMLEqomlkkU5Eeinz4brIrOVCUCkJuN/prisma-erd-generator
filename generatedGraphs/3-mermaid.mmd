@@ -1,0 +1,17 @@
+erDiagram
+
+  "DailySchedule" {
+    Int id "🗝️"
+    String day 
+    String startTime 
+    String endTime 
+    }
+  
+
+  "Schedule" {
+    Int id "🗝️"
+    String name 
+    String timezone 
+    }
+  
+    "DailySchedule" }o--|| "Schedule" : "schedule"
