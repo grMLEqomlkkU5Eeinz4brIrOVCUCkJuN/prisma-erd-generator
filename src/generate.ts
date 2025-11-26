@@ -129,11 +129,11 @@ ${
                     ({ relationName }) => relationName === field.relationName
                 )
 
-                const otherSideMultiplicity = thisSideMultiplicity
+                let otherSideMultiplicity = thisSideMultiplicity
                 if (otherField?.isList) {
-                    thisSideMultiplicity = 'o{'
+                    otherSideMultiplicity = '}o'
                 } else if (!otherField?.isRequired) {
-                    thisSideMultiplicity = 'o|'
+                    otherSideMultiplicity = '|o'
                 }
 
                 relationships += `    ${thisSide} ${thisSideMultiplicity}--${otherSideMultiplicity} ${

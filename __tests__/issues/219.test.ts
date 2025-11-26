@@ -19,29 +19,22 @@ test('issue 219: unnecessary many-to-many relation lines', async () => {
     // The key issue: we should NOT have a many-to-many relationship line (o{--}o)
     // between Schedule and DailySchedule. This is a one-to-many relationship.
     
-    // Count occurrences of many-to-many markers in the SVG
-    // Many-to-many relationships use markers like "zeroOrMoreStart" and "zeroOrMoreEnd"
-    const manyToManyStartMarkers = (svgContent.match(/zeroOrMoreStart/g) || []).length
-    const manyToManyEndMarkers = (svgContent.match(/zeroOrMoreEnd/g) || []).length
-    
     // For a one-to-many relationship, we should have:
-    // - "onlyOneStart" and "zeroOrMoreEnd" (or similar) markers
+    // - "onlyOneStart" and "zeroOrMoreEnd" (or "oneOrMoreEnd") markers
     // - NOT "zeroOrMoreStart" and "zeroOrMoreEnd" together (which indicates many-to-many)
     
     // Check that we have the correct one-to-many markers
     const onlyOneStartMarkers = (svgContent.match(/onlyOneStart/g) || []).length
     const zeroOrMoreEndMarkers = (svgContent.match(/zeroOrMoreEnd/g) || []).length
+    const oneOrMoreEndMarkers = (svgContent.match(/oneOrMoreEnd/g) || []).length
     
-    // We should have one-to-many markers (onlyOneStart with zeroOrMoreEnd)
-    // but NOT many-to-many markers (zeroOrMoreStart with zeroOrMoreEnd)
+    // We should have one-to-many markers (onlyOneStart with zeroOrMoreEnd or oneOrMoreEnd)
     expect(onlyOneStartMarkers).toBeGreaterThan(0)
-    expect(zeroOrMoreEndMarkers).toBeGreaterThan(0)
+    expect(zeroOrMoreEndMarkers + oneOrMoreEndMarkers).toBeGreaterThan(0)
     
-    // The many-to-many start markers should be 0 (or at least not match the end markers)
-    // This ensures we don't have a many-to-many relationship drawn
-    if (manyToManyStartMarkers > 0) {
-        // If we have many-to-many start markers, they should not be paired with end markers
-        // for the Schedule-DailySchedule relationship
-        expect(manyToManyStartMarkers).not.toEqual(manyToManyEndMarkers)
-    }
+    // We should NOT have many-to-many markers (zeroOrMoreStart with zeroOrMoreEnd)
+    // Count many-to-many start markers - should be 0 for this simple schema
+    const manyToManyStartMarkers = (svgContent.match(/zeroOrMoreStart/g) || []).length
+    // For this simple schema with only one relationship, there should be no many-to-many markers
+    expect(manyToManyStartMarkers).toBe(0)
 })
