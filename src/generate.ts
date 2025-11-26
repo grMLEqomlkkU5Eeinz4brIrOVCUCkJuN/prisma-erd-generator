@@ -18,7 +18,7 @@ import type { MermaidConfig } from 'mermaid'
 
 dotenv.config() // Load the environment variables
 
-function renderDml(dml: DML, options?: DMLRendererOptions) {
+function renderDml(dml: DML, options?: DMLRendererOptions, ulidFields?: Set<string>) {
     const {
         tableOnly = false,
         ignoreEnums = false,
@@ -77,7 +77,15 @@ ${
               .filter(isFieldShownInSchema(model, includeRelationFromFields))
               // the replace is a hack to make MongoDB style ID columns like _id valid for Mermaid
               .map((field) => {
-                  return `    ${field.type.trimStart()} ${field.name.replace(
+                  // Check if this field is a ULID field
+                  // Use original field name if available (before @map), otherwise use current name
+                  const fieldNameForCheck = (field as DMLField & { originalName?: string }).originalName || field.name
+                  const fieldKey = `${model.name}.${fieldNameForCheck}`
+                  const isUlidField = ulidFields?.has(fieldKey)
+                  // Display ULID instead of String for ULID fields
+                  const displayType = isUlidField && field.type === 'String' ? 'ULID' : field.type.trimStart()
+                  
+                  return `    ${displayType} ${field.name.replace(
                       /^_/,
                       'z_'
                   )} ${
@@ -264,6 +272,57 @@ export const matchesIgnorePattern = (
     })
 }
 
+/**
+ * Detects ULID fields from the Prisma schema
+ * Returns a Set of field identifiers in the format "modelName.fieldName"
+ */
+export const detectUlidFields = (dataModel: string): Set<string> => {
+    const ulidFields = new Set<string>()
+    const lines = dataModel?.split('\n') || []
+    let currentModel: string | null = null
+    let braceCount = 0
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]?.trim()
+        const originalLine = lines[i] || ''
+        
+        if (!line && !originalLine) continue
+        
+        // Count braces to track model boundaries
+        const openBraces = (originalLine.match(/{/g) || []).length
+        const closeBraces = (originalLine.match(/}/g) || []).length
+        braceCount += openBraces - closeBraces
+
+        // Detect model declaration
+        const modelMatch = line.match(/^model\s+(\w+)/)
+        if (modelMatch) {
+            currentModel = modelMatch[1]
+            continue
+        }
+
+        // Reset current model when we exit all braces
+        if (braceCount <= 0 && currentModel) {
+            currentModel = null
+            braceCount = 0
+            continue
+        }
+
+        // Detect ULID fields: look for @default(ulid()) or @default(ulid)
+        // Pattern matches: @default(ulid()), @default(ulid), @default(ulid("prefix"))
+        if (currentModel && /@default\s*\(\s*ulid/i.test(line)) {
+            // Extract field name - field name is before the type
+            // Pattern: fieldName Type @default(ulid())
+            const fieldMatch = line.match(/^\s*(\w+)\s+\w+/)
+            if (fieldMatch) {
+                const fieldName = fieldMatch[1]
+                ulidFields.add(`${currentModel}.${fieldName}`)
+            }
+        }
+    }
+
+    return ulidFields
+}
+
 export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
     const splitDataModel = dataModel
         ?.split('\n')
@@ -274,6 +333,9 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
         return {
             ...model,
             fields: model.fields.map((field) => {
+                // Store original field name for ULID detection
+                const originalFieldName = field.name
+                
                 let filterStatus: 'None' | 'Match' | 'End' = 'None'
                 // get line with field to \n
                 const lineInDataModel = splitDataModel
@@ -310,6 +372,9 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
                         field.name = name
                     }
                 }
+
+                // Store original field name for later use (e.g., ULID detection)
+                ;(field as DMLField & { originalName?: string }).originalName = originalFieldName
 
                 return field
             }),
@@ -381,6 +446,10 @@ export default async (options: GeneratorOptions) => {
         // Since Prisma's DMMF doesn't separate views from models, we parse the schema
         const viewNames = extractViewNames(options.datamodel)
         dml.views = dml.models.filter((model) => viewNames.includes(model.name))
+        
+        // Detect ULID fields from the schema
+        const ulidFields = detectUlidFields(options.datamodel)
+        
         if (debug && dml.models) {
             const mapAppliedFile = path.resolve(
                 'prisma/debug/2-datamodel-map-applied.json'
@@ -396,7 +465,7 @@ export default async (options: GeneratorOptions) => {
             ignorePattern,
             includeRelationFromFields,
             disableEmoji,
-        })
+        }, ulidFields)
         if (debug && mermaid) {
             const mermaidFile = path.resolve('prisma/debug/3-mermaid.mmd')
             fs.writeFileSync(mermaidFile, mermaid)
