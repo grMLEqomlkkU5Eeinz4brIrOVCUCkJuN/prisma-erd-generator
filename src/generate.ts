@@ -114,13 +114,6 @@ ${
                     field.relationFromFields.length > 0) ||
                 isEnum
             ) {
-                let thisSideMultiplicity = '||'
-                if (field.isList) {
-                    thisSideMultiplicity = '}o'
-                } else if (!field.isRequired) {
-                    thisSideMultiplicity = '|o'
-                }
-
                 const otherModel = modellikes.find(
                     (model) => model.name === field.type || model.dbName === field.type
                 )
@@ -129,10 +122,21 @@ ${
                     ({ relationName }) => relationName === field.relationName
                 )
 
-                let otherSideMultiplicity = '||'
+                // thisSideMultiplicity: how many of THIS side per one of OTHER side
+                // Based on otherField (if otherField is a list, there are many of this side)
+                let thisSideMultiplicity = '||'
                 if (otherField?.isList) {
-                    otherSideMultiplicity = '}o'
+                    thisSideMultiplicity = '}o'
                 } else if (!otherField?.isRequired) {
+                    thisSideMultiplicity = '|o'
+                }
+
+                // otherSideMultiplicity: how many of OTHER side per one of THIS side
+                // Based on field (if field is required, there is exactly one of other side)
+                let otherSideMultiplicity = '||'
+                if (field.isList) {
+                    otherSideMultiplicity = '}o'
+                } else if (!field.isRequired) {
                     otherSideMultiplicity = '|o'
                 }
 

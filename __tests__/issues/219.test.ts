@@ -19,22 +19,20 @@ test('issue 219: unnecessary many-to-many relation lines', async () => {
     // The key issue: we should NOT have a many-to-many relationship line (o{--}o)
     // between Schedule and DailySchedule. This is a one-to-many relationship.
     
-    // For a one-to-many relationship, we should have:
-    // - "onlyOneStart" and "zeroOrMoreEnd" (or "oneOrMoreEnd") markers
-    // - NOT "zeroOrMoreStart" and "zeroOrMoreEnd" together (which indicates many-to-many)
+    // For a one-to-many relationship like DailySchedule }o--|| Schedule:
+    // - DailySchedule side: zeroOrMoreStart (}o) - many DailySchedules per Schedule
+    // - Schedule side: onlyOneEnd (||) - one Schedule per DailySchedule
     
     // Check that we have the correct one-to-many markers
-    const onlyOneStartMarkers = (svgContent.match(/onlyOneStart/g) || []).length
-    const zeroOrMoreEndMarkers = (svgContent.match(/zeroOrMoreEnd/g) || []).length
-    const oneOrMoreEndMarkers = (svgContent.match(/oneOrMoreEnd/g) || []).length
+    const zeroOrMoreStartMarkers = (svgContent.match(/zeroOrMoreStart/g) || []).length
+    const onlyOneEndMarkers = (svgContent.match(/onlyOneEnd/g) || []).length
     
-    // We should have one-to-many markers (onlyOneStart with zeroOrMoreEnd or oneOrMoreEnd)
-    expect(onlyOneStartMarkers).toBeGreaterThan(0)
-    expect(zeroOrMoreEndMarkers + oneOrMoreEndMarkers).toBeGreaterThan(0)
+    // We should have exactly one one-to-many relationship
+    expect(zeroOrMoreStartMarkers).toBe(1) // One }o marker on DailySchedule side
+    expect(onlyOneEndMarkers).toBe(1) // One || marker on Schedule side
     
-    // We should NOT have many-to-many markers (zeroOrMoreStart with zeroOrMoreEnd)
-    // Count many-to-many start markers - should be 0 for this simple schema
-    const manyToManyStartMarkers = (svgContent.match(/zeroOrMoreStart/g) || []).length
-    // For this simple schema with only one relationship, there should be no many-to-many markers
-    expect(manyToManyStartMarkers).toBe(0)
+    // Count the number of relationship paths in the SVG
+    // There should be exactly ONE relationship line, not two
+    const relationshipPaths = (svgContent.match(/class="[^"]*relationshipLine[^"]*"/g) || []).length
+    expect(relationshipPaths).toBe(1)
 })
