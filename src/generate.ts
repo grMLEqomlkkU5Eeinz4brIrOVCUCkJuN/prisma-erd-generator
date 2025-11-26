@@ -350,12 +350,53 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
         .filter((line) => line.includes('@map') || line.includes('model '))
         .map((line) => line.trim())
 
+    // Build a map of mapped names to Prisma field names for reverse lookup
+    const mappedToPrismaName = new Map<string, string>()
+    
+    // First pass: extract all mappings from the schema
+    for (const model of dmlModels) {
+        let filterStatus: 'None' | 'Match' | 'End' = 'None'
+        const modelLines = splitDataModel.filter((line) => {
+            if (
+                filterStatus === 'Match' &&
+                line.includes('model ')
+            ) {
+                filterStatus = 'End'
+            }
+            if (
+                filterStatus === 'None' &&
+                line.includes(`model ${model.name} `)
+            ) {
+                filterStatus = 'Match'
+            }
+            return filterStatus === 'Match'
+        })
+        
+        for (const line of modelLines) {
+            if (line.includes('@map')) {
+                // Extract Prisma field name and mapped name
+                // Pattern: fieldName Type @map("mapped_name")
+                const fieldMatch = line.match(/^\s*(\w+)\s+\w+/)
+                const mapMatch = line.match(/@map\(\"(.*?)\"\)/)
+                if (fieldMatch?.[1] && mapMatch?.[1]) {
+                    const prismaName = fieldMatch[1]
+                    const mappedName = mapMatch[1]
+                        .replace(/^_/, 'z_') // replace leading underscores
+                        .replace(/\s/g, '') // remove spaces
+                    mappedToPrismaName.set(mappedName, prismaName)
+                }
+            }
+        }
+    }
+
     return dmlModels.map((model) => {
         return {
             ...model,
             fields: model.fields.map((field) => {
-                // Store original field name for ULID detection
-                const originalFieldName = field.name
+                // Determine the original Prisma field name
+                // If the current field name is a mapped name, find the Prisma name
+                // Otherwise, the current name is the Prisma name
+                const originalPrismaName = mappedToPrismaName.get(field.name) || field.name
                 
                 let filterStatus: 'None' | 'Match' | 'End' = 'None'
                 // get line with field to \n
@@ -378,7 +419,8 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
                     })
                     .find(
                         (line) =>
-                            line.includes(`${field.name} `) &&
+                            // Check both the Prisma name and the mapped name
+                            (line.includes(`${originalPrismaName} `) || line.includes(`${field.name} `)) &&
                             line.includes('@map')
                     )
                 if (lineInDataModel) {
@@ -394,8 +436,8 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
                     }
                 }
 
-                // Store original field name for later use (e.g., ULID detection)
-                ;(field as DMLField & { originalName?: string }).originalName = originalFieldName
+                // Store original Prisma field name for later use (e.g., ULID detection)
+                ;(field as DMLField & { originalName?: string }).originalName = originalPrismaName
 
                 return field
             }),
