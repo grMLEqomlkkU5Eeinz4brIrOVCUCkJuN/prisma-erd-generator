@@ -139,10 +139,23 @@ ${
                     (m) => m.name === field.type || m.dbName === field.type
                 )
                 if (otherModel) {
-                    const thisIndex = modellikes.indexOf(model)
-                    const otherIndex = modellikes.indexOf(otherModel)
-                    if (thisIndex < otherIndex) {
-                        relationships += `    ${thisSide} o{--}o ${otherSide} : ""\n`
+                    // Check if the other side has relationFromFields (foreign keys)
+                    // If it does, this is NOT a many-to-many, it's a one-to-many
+                    // that's already being handled when we process the other side
+                    const otherField = otherModel.fields.find(
+                        ({ relationName }) => relationName === field.relationName
+                    )
+                    const isOtherSideOneToMany =
+                        otherField?.relationFromFields &&
+                        otherField.relationFromFields.length > 0
+
+                    // Only treat as many-to-many if the other side also has no foreign keys
+                    if (!isOtherSideOneToMany) {
+                        const thisIndex = modellikes.indexOf(model)
+                        const otherIndex = modellikes.indexOf(otherModel)
+                        if (thisIndex < otherIndex) {
+                            relationships += `    ${thisSide} o{--}o ${otherSide} : ""\n`
+                        }
                     }
                 }
             } else if (field.kind === 'object') {
