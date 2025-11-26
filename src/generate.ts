@@ -283,8 +283,8 @@ export const detectUlidFields = (dataModel: string): Set<string> => {
     let braceCount = 0
 
     for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]?.trim()
         const originalLine = lines[i] || ''
+        const line = originalLine.trim()
         
         if (!line && !originalLine) continue
         
@@ -295,7 +295,7 @@ export const detectUlidFields = (dataModel: string): Set<string> => {
 
         // Detect model declaration
         const modelMatch = line.match(/^model\s+(\w+)/)
-        if (modelMatch) {
+        if (modelMatch && modelMatch[1]) {
             currentModel = modelMatch[1]
             continue
         }
@@ -309,11 +309,11 @@ export const detectUlidFields = (dataModel: string): Set<string> => {
 
         // Detect ULID fields: look for @default(ulid()) or @default(ulid)
         // Pattern matches: @default(ulid()), @default(ulid), @default(ulid("prefix"))
-        if (currentModel && /@default\s*\(\s*ulid/i.test(line)) {
+        if (currentModel && line && /@default\s*\(\s*ulid/i.test(line)) {
             // Extract field name - field name is before the type
             // Pattern: fieldName Type @default(ulid())
             const fieldMatch = line.match(/^\s*(\w+)\s+\w+/)
-            if (fieldMatch) {
+            if (fieldMatch && fieldMatch[1]) {
                 const fieldName = fieldMatch[1]
                 ulidFields.add(`${currentModel}.${fieldName}`)
             }
