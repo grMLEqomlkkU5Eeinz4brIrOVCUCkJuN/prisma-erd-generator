@@ -1177,3 +1177,124 @@ model Model100 {
     createdAt DateTime @default(now())
 }
 
+// Extra models to further increase schema size for debug JSON stress testing
+model ExtraModel101 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel102 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel103 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel104 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel105 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel106 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel107 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel108 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel109 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model ExtraModel110 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    String?
+    field3    String?
+    field4    Int?
+    field5    Int?
+    field6    Boolean?
+    createdAt DateTime @default(now())
+}
+
