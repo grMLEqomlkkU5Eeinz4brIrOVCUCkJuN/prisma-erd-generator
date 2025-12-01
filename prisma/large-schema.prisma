@@ -26,6 +26,15 @@ model User {
     likes     Like[]
     follows   Follow[] @relation("UserFollows")
     followers Follow[] @relation("UserFollowers")
+    orders    Order[]
+    reviews   Review[]
+    blogPosts BlogPost[]
+    pages     Page[]
+    media     Media[]
+    notifications Notification[]
+    pageViews PageView[]
+    events    Event[]
+    settings  UserSetting?
 }
 
 model Profile {
@@ -92,6 +101,7 @@ model Category {
     description String?
     posts       Post[]
     createdAt   DateTime @default(now())
+    products    Product[]
 }
 
 model Tag {
@@ -312,6 +322,12 @@ model UserSetting {
     id        Int      @id @default(autoincrement())
     userId    Int      @unique
     user      User     @relation(fields: [userId], references: [id])
+    theme     String   @default("light")
+    language  String   @default("en")
+    notifications Boolean @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
     theme     String   @default("light")
     language  String   @default("en")
     notifications Boolean @default(true)
