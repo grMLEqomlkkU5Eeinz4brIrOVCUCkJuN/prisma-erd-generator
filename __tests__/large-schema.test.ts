@@ -9,7 +9,10 @@ test('large-schema.prisma - Test file writing with massive schema', async () => 
     const debugDir = path.resolve('prisma/debug')
     
     // Clean up previous runs
-    child_process.execSync(`rm -f ${folderName}/${fileName}`)
+    const svgPath = path.join(folderName, fileName)
+    if (fs.existsSync(svgPath)) {
+        fs.unlinkSync(svgPath)
+    }
     if (fs.existsSync(debugDir)) {
         fs.rmSync(debugDir, { recursive: true, force: true })
     }
@@ -20,12 +23,9 @@ test('large-schema.prisma - Test file writing with massive schema', async () => 
     )
     
     // Check that the SVG was generated
-    const listFile = child_process.execSync(`ls -la ${folderName}/${fileName}`)
-    expect(listFile.toString()).toContain(fileName)
+    expect(fs.existsSync(svgPath)).toBe(true)
 
-    const svgAsString = child_process
-        .execSync(`cat ${folderName}/${fileName}`)
-        .toString()
+    const svgAsString = fs.readFileSync(svgPath, 'utf8')
 
     // Verify SVG was generated
     expect(svgAsString).toContain('<svg')
