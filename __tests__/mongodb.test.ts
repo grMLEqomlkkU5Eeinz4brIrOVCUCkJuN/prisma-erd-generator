@@ -20,6 +20,6 @@ test('mongodb.prisma', async () => {
     expect(svgAsString).toContain(`Foo`)
     expect(svgAsString).toContain(`marker-end="url(#my-svg_er-onlyOneEnd)"`)
     expect(svgAsString).toContain(
-        `marker-start="url(#my-svg_er-zeroOrOneStart)"`
+        `marker-start="url(#my-svg_er-zeroOrMoreStart)"`
     )
 })
