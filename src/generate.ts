@@ -293,6 +293,13 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
         return {
             ...model,
             fields: model.fields.map((field) => {
+                // Preserve the original Prisma field name (before any @map renames)
+                ;(field as any).originalName =
+                    (field as any).originalName ?? field.name
+                // Legacy key kept for backward compatibility with older expectations
+                ;(field as any).orignalName =
+                    (field as any).orignalName ?? field.name
+
                 let filterStatus: 'None' | 'Match' | 'End' = 'None'
                 // get line with field to \n
                 const lineInDataModel = splitDataModel
