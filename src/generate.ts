@@ -367,7 +367,8 @@ const applyUlidAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
         // Enter model block
         const modelMatch = line.match(/^model\s+(\w+)\s*\{/)
         if (modelMatch) {
-            currentModel = modelMatch[1]
+            const [, modelName] = modelMatch
+            currentModel = modelName ?? null
             pendingUlid = false
             continue
         }
