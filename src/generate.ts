@@ -618,7 +618,8 @@ export default async (options: GeneratorOptions) => {
         const mermaidCommand = `"${mermaidCliNodePath}" -i "${tempMermaidFile}" -o "${output}" -c "${tempConfigFile}" -p "${puppeteerConfig}"`
         if (debug && mermaidCommand)
             console.log('mermaid command: ', mermaidCommand)
-        child_process.execSync(mermaidCommand)
+        // Increase maxBuffer to avoid ENOBUFS on very large schemas / verbose CLI output
+        child_process.execSync(mermaidCommand, { maxBuffer: 10 * 1024 * 1024 })
 
         // throw error if file was not created
         if (!fs.existsSync(output)) {
