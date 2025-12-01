@@ -77,7 +77,9 @@ ${
               .filter(isFieldShownInSchema(model, includeRelationFromFields))
               // the replace is a hack to make MongoDB style ID columns like _id valid for Mermaid
               .map((field) => {
-                  return `    ${field.type.trimStart()} ${field.name.replace(
+                  const displayType =
+                      (field as any).displayType || field.type.trimStart()
+                  return `    ${displayType} ${field.name.replace(
                       /^_/,
                       'z_'
                   )} ${
@@ -334,6 +336,87 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
     })
 }
 
+/**
+ * Detect ULID fields from Prisma schema comments and annotate corresponding DML fields.
+ *
+ * We look for lines like:
+ *   "/// @ulid"
+ * immediately followed by a field definition inside a model block.
+ *
+ * The actual Prisma type remains "String" in the DML, but we annotate the field with
+ * a custom "displayType" of "ULID" so that the ERD can render this type name.
+ */
+const applyUlidAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
+    if (!dataModel) {
+        return dmlModels
+    }
+
+    const lines = dataModel.split('\n')
+    type UlidKey = `${string}.${string}`
+    const ulidFields = new Set<UlidKey>()
+
+    let currentModel: string | null = null
+    let pendingUlid = false
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line) {
+            continue
+        }
+
+        // Enter model block
+        const modelMatch = line.match(/^model\s+(\w+)\s*\{/)
+        if (modelMatch) {
+            currentModel = modelMatch[1]
+            pendingUlid = false
+            continue
+        }
+
+        // Leave model block
+        if (line.startsWith('}')) {
+            currentModel = null
+            pendingUlid = false
+            continue
+        }
+
+        if (!currentModel) {
+            continue
+        }
+
+        // Detect ULID doc comment
+        if (/^\/\/\/\s*@ulid\b/i.test(line)) {
+            pendingUlid = true
+            continue
+        }
+
+        // Next field line after "/// @ulid" within the same model
+        if (pendingUlid) {
+            // Very simple field matcher: "<name> <type> ..."
+            const fieldMatch = line.match(/^(\w+)\s+\w+/)
+            if (fieldMatch) {
+                const fieldName = fieldMatch[1]
+                ulidFields.add(`${currentModel}.${fieldName}`)
+                pendingUlid = false
+            }
+        }
+    }
+
+    if (ulidFields.size === 0) {
+        return dmlModels
+    }
+
+    return dmlModels.map((model) => ({
+        ...model,
+        fields: model.fields.map((field) => {
+            const key = `${model.name}.${field.name}` as UlidKey
+            if (ulidFields.has(key)) {
+                ;(field as any).displayType = 'ULID'
+            }
+            return field
+        }),
+    }))
+}
+
 export default async (options: GeneratorOptions) => {
     try {
         const output = options.generator.output?.value || './prisma/ERD.svg'
@@ -382,12 +465,15 @@ export default async (options: GeneratorOptions) => {
         if (debug && dml) {
             fs.mkdirSync(path.resolve('prisma/debug'), { recursive: true })
             const dataModelFile = path.resolve('prisma/debug/1-datamodel.json')
-            fs.writeFileSync(dataModelFile, JSON.stringify(dml, null, 2))
+            const jsonString = JSON.stringify(dml, null, 2)
+            await fs.promises.writeFile(dataModelFile, jsonString, 'utf8')
             console.log(`data model written to ${dataModelFile}`)
         }
 
         // updating dml to map to db table and column names (@map && @@map)
         dml.models = mapPrismaToDb(dml.models, options.datamodel)
+        // annotate ULID fields based on Prisma schema comments (/// @ulid)
+        dml.models = applyUlidAnnotations(dml.models, options.datamodel)
 
         // default types to empty array
         if (!dml.types) {
@@ -402,7 +488,8 @@ export default async (options: GeneratorOptions) => {
             const mapAppliedFile = path.resolve(
                 'prisma/debug/2-datamodel-map-applied.json'
             )
-            fs.writeFileSync(mapAppliedFile, JSON.stringify(dml, null, 2))
+            const jsonString = JSON.stringify(dml, null, 2)
+            await fs.promises.writeFile(mapAppliedFile, jsonString, 'utf8')
             console.log(`applied @map to fields written to ${mapAppliedFile}`)
         }
 

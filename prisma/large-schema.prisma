@@ -1,0 +1,1349 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator erd {
+    provider = "node ./dist/index.cjs"
+    output   = "../__tests__/large-schema.svg"
+    theme    = "forest"
+    erdDebug = true
+}
+
+// Large schema to test file writing with many models, fields, and relationships
+// This schema contains 100+ models to ensure the debug JSON files are large enough
+// to test the async file writing fix
+
+model User {
+    id        Int      @id @default(autoincrement())
+    email     String   @unique
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    profile   Profile?
+    posts     Post[]
+    comments  Comment[]
+    likes     Like[]
+    follows   Follow[] @relation("UserFollows")
+    followers Follow[] @relation("UserFollowers")
+}
+
+model Profile {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @unique
+    user      User     @relation(fields: [userId], references: [id])
+    bio       String?
+    avatar    String?
+    website   String?
+    createdAt DateTime @default(now())
+}
+
+model Post {
+    id        Int      @id @default(autoincrement())
+    title     String
+    content   String
+    authorId  Int
+    author    User     @relation(fields: [authorId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    comments  Comment[]
+    likes     Like[]
+    tags      PostTag[]
+    category  Category? @relation(fields: [categoryId], references: [id])
+    categoryId Int?
+}
+
+model Comment {
+    id        Int      @id @default(autoincrement())
+    content   String
+    postId    Int
+    post      Post     @relation(fields: [postId], references: [id])
+    authorId  Int
+    author    User     @relation(fields: [authorId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    likes     Like[]
+}
+
+model Like {
+    id        Int      @id @default(autoincrement())
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    postId    Int?
+    post      Post?    @relation(fields: [postId], references: [id])
+    commentId Int?
+    comment   Comment? @relation(fields: [commentId], references: [id])
+    createdAt DateTime @default(now())
+}
+
+model Follow {
+    id          Int      @id @default(autoincrement())
+    followerId  Int
+    followingId Int
+    follower    User     @relation("UserFollowers", fields: [followerId], references: [id])
+    following   User     @relation("UserFollows", fields: [followingId], references: [id])
+    createdAt   DateTime @default(now())
+    @@unique([followerId, followingId])
+}
+
+model Category {
+    id          Int      @id @default(autoincrement())
+    name        String   @unique
+    description String?
+    posts       Post[]
+    createdAt   DateTime @default(now())
+}
+
+model Tag {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique
+    posts     PostTag[]
+    createdAt DateTime @default(now())
+}
+
+model PostTag {
+    id     Int  @id @default(autoincrement())
+    postId Int
+    tagId  Int
+    post   Post @relation(fields: [postId], references: [id])
+    tag    Tag  @relation(fields: [tagId], references: [id])
+    @@unique([postId, tagId])
+}
+
+// E-commerce models
+model Product {
+    id          Int      @id @default(autoincrement())
+    name        String
+    description String?
+    price       Float
+    stock       Int      @default(0)
+    categoryId  Int
+    category    Category @relation(fields: [categoryId], references: [id])
+    orderItems  OrderItem[]
+    reviews     Review[]
+    images      ProductImage[]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+model ProductImage {
+    id        Int      @id @default(autoincrement())
+    productId Int
+    product   Product  @relation(fields: [productId], references: [id])
+    url       String
+    alt       String?
+    order     Int      @default(0)
+    createdAt DateTime @default(now())
+}
+
+model Order {
+    id         Int         @id @default(autoincrement())
+    userId     Int
+    user       User        @relation(fields: [userId], references: [id])
+    status     OrderStatus @default(PENDING)
+    total      Float
+    items      OrderItem[]
+    shipping   Shipping?
+    payment    Payment?
+    createdAt  DateTime    @default(now())
+    updatedAt  DateTime    @updatedAt
+}
+
+model OrderItem {
+    id        Int     @id @default(autoincrement())
+    orderId   Int
+    order     Order   @relation(fields: [orderId], references: [id])
+    productId Int
+    product   Product @relation(fields: [productId], references: [id])
+    quantity  Int
+    price     Float
+}
+
+model Shipping {
+    id          Int      @id @default(autoincrement())
+    orderId     Int      @unique
+    order       Order    @relation(fields: [orderId], references: [id])
+    address     String
+    city        String
+    state       String
+    zipCode     String
+    country     String
+    trackingNumber String?
+    createdAt   DateTime @default(now())
+}
+
+model Payment {
+    id            Int          @id @default(autoincrement())
+    orderId       Int          @unique
+    order         Order        @relation(fields: [orderId], references: [id])
+    amount        Float
+    method        PaymentMethod
+    status        PaymentStatus @default(PENDING)
+    transactionId String?
+    createdAt     DateTime     @default(now())
+}
+
+enum OrderStatus {
+    PENDING
+    PROCESSING
+    SHIPPED
+    DELIVERED
+    CANCELLED
+}
+
+enum PaymentMethod {
+    CREDIT_CARD
+    DEBIT_CARD
+    PAYPAL
+    STRIPE
+    BANK_TRANSFER
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+}
+
+model Review {
+    id        Int      @id @default(autoincrement())
+    productId Int
+    product   Product  @relation(fields: [productId], references: [id])
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    rating    Int
+    comment   String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Blog system models
+model BlogPost {
+    id          Int      @id @default(autoincrement())
+    title       String
+    slug        String   @unique
+    content     String
+    excerpt     String?
+    authorId    Int
+    author      User     @relation(fields: [authorId], references: [id])
+    published   Boolean  @default(false)
+    publishedAt DateTime?
+    views       Int      @default(0)
+    blogTags    BlogTag[]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+model BlogTag {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique
+    posts     BlogPost[]
+    createdAt DateTime @default(now())
+}
+
+// CMS models
+model Page {
+    id        Int      @id @default(autoincrement())
+    title     String
+    slug      String   @unique
+    content   String
+    published Boolean  @default(false)
+    authorId  Int
+    author    User     @relation(fields: [authorId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Media {
+    id        Int      @id @default(autoincrement())
+    filename  String
+    url       String
+    mimeType  String
+    size      Int
+    uploadedById Int
+    uploadedBy User   @relation(fields: [uploadedById], references: [id])
+    createdAt DateTime @default(now())
+}
+
+// Notification system
+model Notification {
+    id        Int      @id @default(autoincrement())
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    type      NotificationType
+    title     String
+    message   String
+    read      Boolean  @default(false)
+    createdAt DateTime @default(now())
+}
+
+enum NotificationType {
+    LIKE
+    COMMENT
+    FOLLOW
+    MENTION
+    SYSTEM
+}
+
+// Analytics models
+model PageView {
+    id        Int      @id @default(autoincrement())
+    page      String
+    userId    Int?
+    user      User?    @relation(fields: [userId], references: [id])
+    ipAddress String?
+    userAgent String?
+    referrer  String?
+    createdAt DateTime @default(now())
+}
+
+model Event {
+    id        Int      @id @default(autoincrement())
+    name      String
+    data      String?  // JSON data
+    userId    Int?
+    user      User?    @relation(fields: [userId], references: [id])
+    createdAt DateTime @default(now())
+}
+
+// Settings models
+model UserSetting {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @unique
+    user      User     @relation(fields: [userId], references: [id])
+    theme     String   @default("light")
+    language  String   @default("en")
+    notifications Boolean @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model SiteSetting {
+    id        Int      @id @default(autoincrement())
+    key       String   @unique
+    value     String
+    type      String   @default("string")
+    updatedAt DateTime @updatedAt
+}
+
+// Additional models to reach 100+
+model Model1 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model2 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model1Id  Int?
+    model1    Model1?  @relation(fields: [model1Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model3 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model2Id  Int?
+    model2    Model2?  @relation(fields: [model2Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model4 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model3Id  Int?
+    model3    Model3?  @relation(fields: [model3Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model5 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model4Id  Int?
+    model4    Model4?  @relation(fields: [model4Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model6 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model5Id  Int?
+    model5    Model5?  @relation(fields: [model5Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model7 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model6Id  Int?
+    model6    Model6?  @relation(fields: [model6Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model8 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model7Id  Int?
+    model7    Model7?  @relation(fields: [model7Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model9 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model8Id  Int?
+    model8    Model8?  @relation(fields: [model8Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model10 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model9Id  Int?
+    model9    Model9?  @relation(fields: [model9Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Continue with more models to ensure large schema
+model Model11 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model12 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model11Id Int?
+    model11   Model11? @relation(fields: [model11Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model13 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model12Id Int?
+    model12   Model12? @relation(fields: [model12Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model14 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model13Id Int?
+    model13   Model13? @relation(fields: [model13Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model15 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model14Id Int?
+    model14   Model14? @relation(fields: [model14Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model16 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model15Id Int?
+    model15   Model15? @relation(fields: [model15Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model17 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model16Id Int?
+    model16   Model16? @relation(fields: [model16Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model18 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model17Id Int?
+    model17   Model17? @relation(fields: [model17Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model19 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model18Id Int?
+    model18   Model18? @relation(fields: [model18Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model20 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model19Id Int?
+    model19   Model19? @relation(fields: [model19Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Generate more models programmatically - adding 80 more to reach 100+
+// Models 21-100
+model Model21 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model22 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model21Id Int?
+    model21   Model21? @relation(fields: [model21Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model23 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model22Id Int?
+    model22   Model22? @relation(fields: [model22Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model24 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model23Id Int?
+    model23   Model23? @relation(fields: [model23Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model25 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model24Id Int?
+    model24   Model24? @relation(fields: [model24Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model26 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model25Id Int?
+    model25   Model25? @relation(fields: [model25Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model27 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model26Id Int?
+    model26   Model26? @relation(fields: [model26Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model28 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model27Id Int?
+    model27   Model27? @relation(fields: [model27Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model29 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model28Id Int?
+    model28   Model28? @relation(fields: [model28Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model30 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model29Id Int?
+    model29   Model29? @relation(fields: [model29Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Continue with models 31-50
+model Model31 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model32 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model31Id Int?
+    model31   Model31? @relation(fields: [model31Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model33 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model32Id Int?
+    model32   Model32? @relation(fields: [model32Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model34 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model33Id Int?
+    model33   Model33? @relation(fields: [model33Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model35 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model34Id Int?
+    model34   Model34? @relation(fields: [model34Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model36 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model35Id Int?
+    model35   Model35? @relation(fields: [model35Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model37 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model36Id Int?
+    model36   Model36? @relation(fields: [model36Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model38 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model37Id Int?
+    model37   Model37? @relation(fields: [model37Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model39 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model38Id Int?
+    model38   Model38? @relation(fields: [model38Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model40 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model39Id Int?
+    model39   Model39? @relation(fields: [model39Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Models 41-60
+model Model41 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model42 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model41Id Int?
+    model41   Model41? @relation(fields: [model41Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model43 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model42Id Int?
+    model42   Model42? @relation(fields: [model42Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model44 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model43Id Int?
+    model43   Model43? @relation(fields: [model43Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model45 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model44Id Int?
+    model44   Model44? @relation(fields: [model44Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model46 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model45Id Int?
+    model45   Model45? @relation(fields: [model45Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model47 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model46Id Int?
+    model46   Model46? @relation(fields: [model46Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model48 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model47Id Int?
+    model47   Model47? @relation(fields: [model47Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model49 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model48Id Int?
+    model48   Model48? @relation(fields: [model48Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model50 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model49Id Int?
+    model49   Model49? @relation(fields: [model49Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Models 51-70
+model Model51 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model52 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model51Id Int?
+    model51   Model51? @relation(fields: [model51Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model53 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model52Id Int?
+    model52   Model52? @relation(fields: [model52Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model54 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model53Id Int?
+    model53   Model53? @relation(fields: [model53Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model55 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model54Id Int?
+    model54   Model54? @relation(fields: [model54Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model56 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model55Id Int?
+    model55   Model55? @relation(fields: [model55Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model57 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model56Id Int?
+    model56   Model56? @relation(fields: [model56Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model58 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model57Id Int?
+    model57   Model57? @relation(fields: [model57Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model59 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model58Id Int?
+    model58   Model58? @relation(fields: [model58Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model60 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model59Id Int?
+    model59   Model59? @relation(fields: [model59Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Models 61-80
+model Model61 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model62 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model61Id Int?
+    model61   Model61? @relation(fields: [model61Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model63 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model62Id Int?
+    model62   Model62? @relation(fields: [model62Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model64 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model63Id Int?
+    model63   Model63? @relation(fields: [model63Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model65 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model64Id Int?
+    model64   Model64? @relation(fields: [model64Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model66 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model65Id Int?
+    model65   Model65? @relation(fields: [model65Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model67 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model66Id Int?
+    model66   Model66? @relation(fields: [model66Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model68 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model67Id Int?
+    model67   Model67? @relation(fields: [model67Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model69 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model68Id Int?
+    model68   Model68? @relation(fields: [model68Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model70 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model69Id Int?
+    model69   Model69? @relation(fields: [model69Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Models 71-90
+model Model71 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model72 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model71Id Int?
+    model71   Model71? @relation(fields: [model71Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model73 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model72Id Int?
+    model72   Model72? @relation(fields: [model72Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model74 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model73Id Int?
+    model73   Model73? @relation(fields: [model73Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model75 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model74Id Int?
+    model74   Model74? @relation(fields: [model74Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model76 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model75Id Int?
+    model75   Model75? @relation(fields: [model75Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model77 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model76Id Int?
+    model76   Model76? @relation(fields: [model76Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model78 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model77Id Int?
+    model77   Model77? @relation(fields: [model77Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model79 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model78Id Int?
+    model78   Model78? @relation(fields: [model78Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model80 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model79Id Int?
+    model79   Model79? @relation(fields: [model79Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+// Models 81-100
+model Model81 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model82 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model81Id Int?
+    model81   Model81? @relation(fields: [model81Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model83 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model82Id Int?
+    model82   Model82? @relation(fields: [model82Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model84 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model83Id Int?
+    model83   Model83? @relation(fields: [model83Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model85 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model84Id Int?
+    model84   Model84? @relation(fields: [model84Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model86 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model85Id Int?
+    model85   Model85? @relation(fields: [model85Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model87 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model86Id Int?
+    model86   Model86? @relation(fields: [model86Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model88 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model87Id Int?
+    model87   Model87? @relation(fields: [model87Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model89 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model88Id Int?
+    model88   Model88? @relation(fields: [model88Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model90 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model89Id Int?
+    model89   Model89? @relation(fields: [model89Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model91 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    field1    String?
+    field2    Int?
+    field3    Boolean?
+    createdAt DateTime @default(now())
+}
+
+model Model92 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model91Id Int?
+    model91   Model91? @relation(fields: [model91Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model93 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model92Id Int?
+    model92   Model92? @relation(fields: [model92Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    Float?
+    createdAt DateTime @default(now())
+}
+
+model Model94 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model93Id Int?
+    model93   Model93? @relation(fields: [model93Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model95 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model94Id Int?
+    model94   Model94? @relation(fields: [model94Id], references: [id])
+    field1    String?
+    field2    Int?
+    field3    DateTime?
+    createdAt DateTime @default(now())
+}
+
+model Model96 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model95Id Int?
+    model95   Model95? @relation(fields: [model95Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model97 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model96Id Int?
+    model96   Model96? @relation(fields: [model96Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model98 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model97Id Int?
+    model97   Model97? @relation(fields: [model97Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model99 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model98Id Int?
+    model98   Model98? @relation(fields: [model98Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
+model Model100 {
+    id        Int      @id @default(autoincrement())
+    name      String
+    model99Id Int?
+    model99   Model99? @relation(fields: [model99Id], references: [id])
+    field1    String?
+    field2    Int?
+    createdAt DateTime @default(now())
+}
+
