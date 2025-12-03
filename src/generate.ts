@@ -519,7 +519,7 @@ export default async (options: GeneratorOptions) => {
         })
         if (debug && mermaid) {
             const mermaidFile = path.resolve('prisma/debug/3-mermaid.mmd')
-            fs.writeFileSync(mermaidFile, mermaid)
+            await fs.promises.writeFile(mermaidFile, mermaid)
             console.log(`mermaid written to ${mermaidFile}`)
         }
 
@@ -527,10 +527,10 @@ export default async (options: GeneratorOptions) => {
             throw new Error('failed to construct mermaid instance from dml')
 
         if (output.endsWith('.md'))
-            return fs.writeFileSync(output, `\`\`\`mermaid\n${mermaid}\`\`\`\n`)
+            return await fs.promises.writeFile(output, `\`\`\`mermaid\n${mermaid}\`\`\`\n`)
 
         const tempMermaidFile = path.resolve(path.join(tmpDir, 'prisma.mmd'))
-        fs.writeFileSync(tempMermaidFile, mermaid)
+        await fs.promises.writeFile(tempMermaidFile, mermaid)
 
         // default config parameters https://github.com/mermaid-js/mermaid/blob/master/packages/mermaid/src/defaultConfig.ts
         const defaultMermaidConfig: MermaidConfig = {

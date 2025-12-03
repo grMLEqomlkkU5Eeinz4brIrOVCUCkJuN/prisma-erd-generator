@@ -25,7 +25,7 @@ test('large-schema.prisma - Test file writing with massive schema', async () => 
     // Check that the SVG was generated
     expect(fs.existsSync(svgPath)).toBe(true)
 
-    const svgAsString = fs.readFileSync(svgPath, 'utf8')
+    const svgAsString = await fs.promises.readFile(svgPath, 'utf8')
 
     // Verify SVG was generated
     expect(svgAsString).toContain('<svg')
@@ -38,8 +38,8 @@ test('large-schema.prisma - Test file writing with massive schema', async () => 
     expect(fs.existsSync(debugMapAppliedFile)).toBe(true)
     
     // Read and verify the debug JSON files are complete (not truncated)
-    const dataModelContent = fs.readFileSync(debugDataModelFile, 'utf8')
-    const mapAppliedContent = fs.readFileSync(debugMapAppliedFile, 'utf8')
+    const dataModelContent = await fs.promises.readFile(debugDataModelFile, 'utf8')
+    const mapAppliedContent = await fs.promises.readFile(debugMapAppliedFile, 'utf8')
     
     // Verify JSON is valid and complete (not truncated)
     expect(() => JSON.parse(dataModelContent)).not.toThrow()
