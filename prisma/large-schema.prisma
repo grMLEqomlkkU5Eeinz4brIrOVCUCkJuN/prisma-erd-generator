@@ -2024,8 +2024,7 @@ model StressModel200 {
     dt1 DateTime? dt2 DateTime?
 }
 
-// Models 201-300
-model StressModel201 {
+model StressModel201 { id Int @id @default(autoincrement()) data1 String? data2 String? data3 String? num1 Int? num2 Int? bool1 Boolean? }
 model StressModel202 { id Int @id @default(autoincrement()) data1 String? data2 String? data3 String? num1 Int? num2 Int? bool1 Boolean? }
 model StressModel203 { id Int @id @default(autoincrement()) data1 String? data2 String? data3 String? num1 Int? num2 Int? bool1 Boolean? }
 model StressModel204 { id Int @id @default(autoincrement()) data1 String? data2 String? data3 String? num1 Int? num2 Int? bool1 Boolean? }
