@@ -118,12 +118,18 @@ function runPrismaGenerate(command, options) {
 			baseEnv.DISABLE_ERD = disableErdMatch[1];
 		}
 		const runCmd = `pnpm dlx prisma@${version} generate --schema "${tmpSchemaPath}"`;
-		originalExecSync(runCmd, {
-			stdio: "inherit",
-			cwd: rootDir,
-			env: baseEnv,
-			...options,
-		});
+		try {
+            originalExecSync(runCmd, {
+                stdio: "pipe",
+                cwd: rootDir,
+                env: baseEnv,
+                ...options,
+            });
+        } catch (e) {
+            console.error(e.stdout.toString());
+            console.error(e.stderr.toString());
+            throw e;
+        }
 	}
 
 	return Buffer.from("");
