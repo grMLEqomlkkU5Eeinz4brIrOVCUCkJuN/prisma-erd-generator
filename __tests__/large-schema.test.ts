@@ -57,14 +57,15 @@ test('large-schema.prisma - Test file writing with massive schema', async () => 
     const dataModelJson = JSON.parse(dataModelContent)
     expect(dataModelJson.models).toBeDefined()
     expect(Array.isArray(dataModelJson.models)).toBe(true)
-    // We only need to ensure there are many models present, not an exact count.
-    expect(dataModelJson.models.length).toBeGreaterThan(5)
-    
+    // Massive schema should have 200+ models to stress test async file writing
+    expect(dataModelJson.models.length).toBeGreaterThan(600)
+
     // Verify specific models are present
     const modelNames = dataModelJson.models.map((m: { name: string }) => m.name)
     expect(modelNames).toContain('User')
     expect(modelNames).toContain('Post')
     expect(modelNames).toContain('Model100')
+    expect(modelNames).toContain('StressModel600')
     
     // Verify the SVG contains some of the models
     expect(svgAsString).toContain('User')

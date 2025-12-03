@@ -337,26 +337,28 @@ export const mapPrismaToDb = (dmlModels: DMLModel[], dataModel: string) => {
 }
 
 /**
- * Detect ULID fields from Prisma schema comments and annotate corresponding DML fields.
+ * detect UUID and ULID fields from Prisma schema comments and annotate corresponding DML fields.
  *
- * We look for lines like:
+ * looks for lines like:
+ *   "/// @uuid"
  *   "/// @ulid"
  * immediately followed by a field definition inside a model block.
  *
- * The actual Prisma type remains "String" in the DML, but we annotate the field with
- * a custom "displayType" of "ULID" so that the ERD can render this type name.
+ * the actual Prisma type remains "String" in the DML, but we annotate the field with
+ * a custom "displayType" of "UUID" or "ULID" so that the ERD can render this type name.
  */
-const applyUlidAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
+const applyTypeAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
     if (!dataModel) {
         return dmlModels
     }
 
     const lines = dataModel.split('\n')
-    type UlidKey = `${string}.${string}`
-    const ulidFields = new Set<UlidKey>()
+    type FieldKey = `${string}.${string}`
+    const uuidFields = new Set<FieldKey>()
+    const ulidFields = new Set<FieldKey>()
 
     let currentModel: string | null = null
-    let pendingUlid = false
+    let pendingType: 'UUID' | 'ULID' | null = null
 
     for (const rawLine of lines) {
         const line = rawLine.trim()
@@ -369,14 +371,14 @@ const applyUlidAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
         if (modelMatch) {
             const [, modelName] = modelMatch
             currentModel = modelName ?? null
-            pendingUlid = false
+            pendingType = null
             continue
         }
 
         // Leave model block
         if (line.startsWith('}')) {
             currentModel = null
-            pendingUlid = false
+            pendingType = null
             continue
         }
 
@@ -384,33 +386,46 @@ const applyUlidAnnotations = (dmlModels: DMLModel[], dataModel: string) => {
             continue
         }
 
-        // Detect ULID doc comment
-        if (/^\/\/\/\s*@ulid\b/i.test(line)) {
-            pendingUlid = true
+        // Detect UUID doc comment
+        if (/^\/\/\/\s*@uuid\b/i.test(line)) {
+            pendingType = 'UUID'
             continue
         }
 
-        // Next field line after "/// @ulid" within the same model
-        if (pendingUlid) {
+        // Detect ULID doc comment
+        if (/^\/\/\/\s*@ulid\b/i.test(line)) {
+            pendingType = 'ULID'
+            continue
+        }
+
+        // Next field line after annotation within the same model
+        if (pendingType) {
             // Very simple field matcher: "<name> <type> ..."
             const fieldMatch = line.match(/^(\w+)\s+\w+/)
             if (fieldMatch) {
                 const fieldName = fieldMatch[1]
-                ulidFields.add(`${currentModel}.${fieldName}`)
-                pendingUlid = false
+                const fieldKey = `${currentModel}.${fieldName}` as FieldKey
+                if (pendingType === 'UUID') {
+                    uuidFields.add(fieldKey)
+                } else {
+                    ulidFields.add(fieldKey)
+                }
+                pendingType = null
             }
         }
     }
 
-    if (ulidFields.size === 0) {
+    if (uuidFields.size === 0 && ulidFields.size === 0) {
         return dmlModels
     }
 
     return dmlModels.map((model) => ({
         ...model,
         fields: model.fields.map((field) => {
-            const key = `${model.name}.${field.name}` as UlidKey
-            if (ulidFields.has(key)) {
+            const key = `${model.name}.${field.name}` as FieldKey
+            if (uuidFields.has(key)) {
+                ;(field as any).displayType = 'UUID'
+            } else if (ulidFields.has(key)) {
                 ;(field as any).displayType = 'ULID'
             }
             return field
@@ -473,8 +488,8 @@ export default async (options: GeneratorOptions) => {
 
         // updating dml to map to db table and column names (@map && @@map)
         dml.models = mapPrismaToDb(dml.models, options.datamodel)
-        // annotate ULID fields based on Prisma schema comments (/// @ulid)
-        dml.models = applyUlidAnnotations(dml.models, options.datamodel)
+        // annotate UUID and ULID fields based on Prisma schema comments (/// @uuid, /// @ulid)
+        dml.models = applyTypeAnnotations(dml.models, options.datamodel)
 
         // default types to empty array
         if (!dml.types) {
